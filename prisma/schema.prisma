@@ -1,0 +1,97 @@
+// AccessMap AI — Prisma schema
+// Geospatial queries use lat/lng bounding boxes + Haversine in app code,
+// keeping the schema portable to Aurora PostgreSQL without a PostGIS dependency.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum FeatureType {
+  elevator
+  ramp
+  entrance
+  restroom
+  crossing
+  transit_station
+}
+
+enum FeatureStatus {
+  operational
+  out_of_service
+  unknown
+}
+
+enum ReportType {
+  broken_elevator
+  blocked_sidewalk
+  missing_ramp
+  steep_incline
+  stairs_only
+  no_accessible_restroom
+  other
+}
+
+enum Severity {
+  low
+  medium
+  high
+}
+
+enum ReportStatus {
+  open
+  verified
+  resolved
+}
+
+model AccessibilityFeature {
+  id        String        @id @default(cuid())
+  type      FeatureType
+  name      String
+  lat       Float
+  lng       Float
+  status    FeatureStatus @default(operational)
+  source    String        @default("seed")
+  notes     String?
+  updatedAt DateTime      @updatedAt
+  createdAt DateTime      @default(now())
+
+  @@index([lat, lng])
+  @@map("accessibility_feature")
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  type        ReportType
+  lat         Float
+  lng         Float
+  description String
+  severity    Severity     @default(medium)
+  status      ReportStatus @default(open)
+  photoUrl    String?
+  aiAnalysis  Json?
+  votes       Int          @default(0)
+  deviceId    String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([lat, lng])
+  @@map("report")
+}
+
+model RouteLog {
+  id               String   @id @default(cuid())
+  originLabel      String
+  destinationLabel String
+  profile          String
+  barriersAvoided  Int      @default(0)
+  distanceMeters   Float?
+  durationSeconds  Float?
+  createdAt        DateTime @default(now())
+
+  @@map("route_log")
+}
