@@ -26,10 +26,23 @@ function shouldUseSsl(url: string | undefined): boolean {
 }
 
 export function getPgPoolConfig(): PoolConfig {
-  const connectionString = process.env.DATABASE_URL;
+  const rawUrl = process.env.DATABASE_URL;
+  const useSsl = shouldUseSsl(rawUrl);
+
+  // node-postgres (pg) now treats `sslmode=require` in the connection string as
+  // full certificate verification, which fails against the RDS CA unless the
+  // bundle is installed. Strip the sslmode param and drive SSL explicitly via
+  // the `ssl` option so our relaxed (encrypt-but-don't-verify) setting wins.
+  let connectionString = rawUrl;
+  if (useSsl && connectionString) {
+    connectionString = connectionString
+      .replace(/([?&])sslmode=[^&]*(&|$)/i, (_m, p1, p2) => (p2 === "&" ? p1 : ""))
+      .replace(/[?&]$/, "");
+  }
+
   const config: PoolConfig = { connectionString };
 
-  if (shouldUseSsl(connectionString)) {
+  if (useSsl) {
     config.ssl =
       process.env.PGSSL_REJECT_UNAUTHORIZED === "true"
         ? { rejectUnauthorized: true }
